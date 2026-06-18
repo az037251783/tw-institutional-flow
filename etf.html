@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ETF 持股進出彙總</title>
+<meta name="description" content="元大大型 ETF(0050/0056/00940/00713/00850)整體持股彙總與每日加減碼追蹤。">
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
+
+<style>
+  :root{--bg:#f1f5f9;--card:#fff;--ink:#0f172a;--muted:#64748b;--line:#e2e8f0;
+    --buy:#16a34a;--buy-bg:#dcfce7;--sell:#dc2626;--sell-bg:#fee2e2;--brand:#7c3aed;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,"Segoe UI",Roboto,"Noto Sans TC","Microsoft JhengHei",sans-serif;line-height:1.5}
+  header{background:linear-gradient(135deg,#3b0764,#1e293b);color:#fff;padding:22px 20px}
+  header .wrap{max-width:1200px;margin:0 auto}
+  header h1{margin:0;font-size:22px}
+  header .meta{margin-top:6px;font-size:13px;color:#d8b4fe}
+  header .meta b{color:#fff}
+  .navlink{display:inline-block;margin-top:10px;color:#e9d5ff;font-size:13px;text-decoration:none;
+    border:1px solid #6d28d9;border-radius:999px;padding:5px 12px}
+  .navlink:hover{background:#6d28d9}
+  main{max-width:1200px;margin:0 auto;padding:18px 16px 60px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:18px}
+  .card h2{margin:0 0 4px;font-size:16px}
+  .card .sub{color:var(--muted);font-size:13px;margin-bottom:10px}
+  .notice{background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:12px;padding:14px 16px;font-size:14px}
+  .tabs{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 0}
+  .tabs .lab{font-size:12px;color:var(--muted);align-self:center}
+  .pill{border:1px solid var(--line);background:#fff;padding:7px 14px;border-radius:999px;font-size:14px;cursor:pointer}
+  .pill.on{background:#0f172a;color:#fff;border-color:#0f172a}
+  .chart{width:100%;height:340px}
+  .panels{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:14px}
+  .panel{border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  .panel .head{padding:12px 16px;font-weight:600}
+  .panel.add .head{background:var(--buy-bg);color:var(--buy)}
+  .panel.reduce .head{background:var(--sell-bg);color:var(--sell)}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{padding:8px 12px;text-align:right;border-top:1px solid var(--line);white-space:nowrap}
+  th{background:#f8fafc;color:var(--muted);font-weight:600;cursor:pointer;position:sticky;top:0}
+  th.l,td.l{text-align:left}
+  td.rank{color:var(--muted)} td.num{font-variant-numeric:tabular-nums;font-weight:600}
+  .panel.add td.num{color:var(--buy)} .panel.reduce td.num{color:var(--sell)}
+  td a{color:inherit;text-decoration:none;border-bottom:1px dashed #cbd5e1}
+  .badge{display:inline-block;font-size:11px;padding:1px 6px;border-radius:6px;background:#ede9fe;color:#6d28d9;margin-left:6px}
+  .tblwrap{max-height:620px;overflow:auto}
+  footer{max-width:1200px;margin:0 auto;padding:0 16px 50px;color:var(--muted);font-size:12px}
+  footer .dis{background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+  @media (max-width:900px){.panels{grid-template-columns:1fr}}
+</style>
+
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>🧺 ETF 持股進出彙總</h1>
+    <div class="meta" id="hdrMeta"></div>
+    <a class="navlink" href="index.html">← 回 個股三大法人前20大</a>
+  </div>
+</header>
+
+<main>
+  <div class="card">
+    <h2>當前 ETF 持股彙總（依總持有張數）</h2>
+    <div class="sub" id="holdSub"></div>
+    <div id="holdChart" class="chart"></div>
+    <div class="tblwrap"><table id="holdTable"></table></div>
+  </div>
+
+  <div class="card">
+    <h2>ETF 持股進出（加碼 / 減碼）</h2>
+    <div class="sub">追蹤的 ETF 整體在加碼或減碼哪些個股（單位：張）。</div>
+    <div id="chgArea"></div>
+  </div>
+</main>
+
+<footer>
+  <div class="dis" id="footDis"></div>
+</footer>
+
+<script>
+const DATA = {"available": true, "as_of": "2026-06-17", "n_days": 1, "top": 30, "etfs": [{"code": "0050", "name": "元大台灣50", "count": 50}, {"code": "0056", "name": "元大高股息", "count": 49}, {"code": "00940", "name": "元大臺灣價值高息", "count": 50}, {"code": "00713", "name": "元大台灣高息低波", "count": 65}, {"code": "00850", "name": "元大臺灣ESG永續", "count": 104}], "holdings": [{"rank": 1, "symbol": "2887", "name": "台新新光金", "lots": 999998, "n_etfs": 5, "etfs": "0050,0056,00713,00850,00940"}, {"rank": 2, "symbol": "2883", "name": "凱基金", "lots": 951738, "n_etfs": 5, "etfs": "0050,0056,00713,00850,00940"}, {"rank": 3, "symbol": "2890", "name": "永豐金", "lots": 914391, "n_etfs": 5, "etfs": "0050,0056,00713,00850,00940"}, {"rank": 4, "symbol": "2880", "name": "華南金", "lots": 898523, "n_etfs": 4, "etfs": "0050,0056,00713,00850"}, {"rank": 5, "symbol": "2891", "name": "中信金", "lots": 894239, "n_etfs": 5, "etfs": "0050,0056,00713,00850,00940"}, {"rank": 6, "symbol": "2884", "name": "玉山金", "lots": 782002, "n_etfs": 4, "etfs": "0050,0056,00713,00850"}, {"rank": 7, "symbol": "2303", "name": "聯電", "lots": 701771, "n_etfs": 5, "etfs": "0050,0056,00713,00850,00940"}, {"rank": 8, "symbol": "2885", "name": "元大金", "lots": 647703, "n_etfs": 5, "etfs": "0050,0056,00713,00850,00940"}, {"rank": 9, "symbol": "2886", "name": "兆豐金", "lots": 632527, "n_etfs": 3, "etfs": "0050,0056,00850"}, {"rank": 10, "symbol": "2330", "name": "台積電", "lots": 527623, "n_etfs": 2, "etfs": "0050,00850"}, {"rank": 11, "symbol": "1216", "name": "統一", "lots": 436914, "n_etfs": 5, "etfs": "0050,0056,00713,00850,00940"}, {"rank": 12, "symbol": "2618", "name": "長榮航", "lots": 331797, "n_etfs": 4, "etfs": "0056,00713,00850,00940"}, {"rank": 13, "symbol": "2317", "name": "鴻海", "lots": 331181, "n_etfs": 3, "etfs": "0050,0056,00850"}, {"rank": 14, "symbol": "2892", "name": "第一金", "lots": 324003, "n_etfs": 4, "etfs": "0050,00713,00850,00940"}, {"rank": 15, "symbol": "3045", "name": "台灣大", "lots": 265542, "n_etfs": 5, "etfs": "0050,0056,00713,00850,00940"}, {"rank": 16, "symbol": "2002", "name": "中鋼", "lots": 238932, "n_etfs": 1, "etfs": "0050"}, {"rank": 17, "symbol": "5880", "name": "合庫金", "lots": 229593, "n_etfs": 2, "etfs": "0050,00850"}, {"rank": 18, "symbol": "5876", "name": "上海商銀", "lots": 222709, "n_etfs": 3, "etfs": "0056,00713,00850"}, {"rank": 19, "symbol": "1102", "name": "亞泥", "lots": 217500, "n_etfs": 4, "etfs": "0056,00713,00850,00940"}, {"rank": 20, "symbol": "2882", "name": "國泰金", "lots": 212608, "n_etfs": 3, "etfs": "0050,00713,00850"}, {"rank": 21, "symbol": "2881", "name": "富邦金", "lots": 203306, "n_etfs": 4, "etfs": "0050,00713,00850,00940"}, {"rank": 22, "symbol": "2324", "name": "仁寶", "lots": 202851, "n_etfs": 2, "etfs": "0056,00850"}, {"rank": 23, "symbol": "2356", "name": "英業達", "lots": 191132, "n_etfs": 3, "etfs": "0056,00850,00940"}, {"rank": 24, "symbol": "3231", "name": "緯創", "lots": 186030, "n_etfs": 3, "etfs": "0050,0056,00850"}, {"rank": 25, "symbol": "9904", "name": "寶成", "lots": 180801, "n_etfs": 4, "etfs": "0056,00713,00850,00940"}, {"rank": 26, "symbol": "2105", "name": "正新", "lots": 150318, "n_etfs": 2, "etfs": "0056,00850"}, {"rank": 27, "symbol": "4938", "name": "和碩", "lots": 148904, "n_etfs": 4, "etfs": "0056,00713,00850,00940"}, {"rank": 28, "symbol": "2301", "name": "光寶科", "lots": 136006, "n_etfs": 3, "etfs": "0050,0056,00850"}, {"rank": 29, "symbol": "3711", "name": "日月光投控", "lots": 135280, "n_etfs": 3, "etfs": "0050,0056,00850"}, {"rank": 30, "symbol": "2382", "name": "廣達", "lots": 134387, "n_etfs": 4, "etfs": "0050,0056,00713,00850"}], "changes_available": false, "periods": [{"key": "d", "name": "當日", "k": 1, "available": false}, {"key": "w", "name": "近5日(週)", "k": 5, "available": false}, {"key": "m", "name": "近20日(月)", "k": 20, "available": false}], "changes": {}};
+const META = {generatedAt: "2026-06-18 14:40"};
+</script>
+
+<script>
+(function(){
+  const fmt = n => (n<0?'-':'') + Math.abs(n).toLocaleString('en-US');
+  const yh = s => 'https://tw.stock.yahoo.com/quote/'+s;
+
+  if(!DATA.available){
+    document.getElementById('hdrMeta').textContent = '尚無 ETF 持股資料';
+    document.getElementById('chgArea').innerHTML = '<div class="notice">尚未抓到 ETF 持股，請先執行每日更新。</div>';
+    return;
+  }
+
+  // 表頭資訊
+  const etfList = DATA.etfs.map(e=>`${e.code} ${e.name}(${e.count})`).join('、');
+  document.getElementById('hdrMeta').innerHTML =
+    `資料截至 <b>${DATA.as_of}</b> · 已累積 <b>${DATA.n_days}</b> 日快照 · 更新 ${META.generatedAt}（台北）`;
+  document.getElementById('holdSub').textContent = `追蹤 ${DATA.etfs.length} 檔元大 ETF：${etfList}`;
+  document.getElementById('footDis').innerHTML =
+    `<b>資料來源</b>：元大投信官網每日持股（${etfList}）。單位「張」＝1000股；持股「進出」為跨這些 ETF 的持有股數變化。<br>`+
+    `<b>說明</b>：免費資料僅提供「當前」持股、無歷史可回補，故進出變化自上線日起逐日累積（5日/20日需累積足夠交易日）。<br>`+
+    `<b>免責</b>：本頁為資訊整理，非投資建議。`;
+
+  // ---- 當前持股彙總 ----
+  function holdTable(){
+    const rows = DATA.holdings;
+    let h='<thead><tr><th>#</th><th class="l">代號</th><th class="l">名稱</th><th>總張數</th><th>持有ETF數</th><th class="l">持有的ETF</th></tr></thead><tbody>';
+    rows.forEach(r=>{
+      h+=`<tr><td class="rank">${r.rank}</td>
+        <td class="l"><a href="${yh(r.symbol)}" target="_blank" rel="noopener">${r.symbol}</a></td>
+        <td class="l">${r.name}</td>
+        <td class="num">${fmt(r.lots)}</td>
+        <td>${r.n_etfs}</td>
+        <td class="l" style="font-size:12px;color:#64748b">${r.etfs}</td></tr>`;
+    });
+    document.getElementById('holdTable').innerHTML = h+'</tbody>';
+  }
+  function holdBar(){
+    const r = DATA.holdings.slice(0,20).reverse();
+    Plotly.newPlot('holdChart',[{type:'bar',orientation:'h',
+      x:r.map(x=>x.lots), y:r.map(x=>x.name+' '+x.symbol),
+      text:r.map(x=>fmt(x.lots)), textposition:'auto', marker:{color:'#7c3aed'},
+      hovertemplate:'%{y}<br>%{text} 張<extra></extra>'}],
+      {margin:{l:130,r:16,t:6,b:28},height:340,xaxis:{title:'張',gridcolor:'#eef2f7'},
+       yaxis:{automargin:true,tickfont:{size:11}},paper_bgcolor:'rgba(0,0,0,0)',plot_bgcolor:'rgba(0,0,0,0)'},
+      {responsive:true,displayModeBar:false});
+  }
+
+  // ---- 進出變化 ----
+  const chgState = {p: (DATA.periods.find(p=>p.available)||{}).key};
+  function buildChange(){
+    const area = document.getElementById('chgArea');
+    if(!DATA.changes_available){
+      area.innerHTML = '<div class="notice">📈 持股進出變化<b>資料累積中</b> —— 免費資料只有「當前」持股、無法回補歷史，'+
+        '所以變化從上線日起逐日累積：<b>當日變化明天起</b>、近5日需 5 個交易日、近20日需 20 個交易日。'+
+        '在那之前，可先看上方「當前持股彙總」。</div>';
+      return;
+    }
+    let tabs='<div class="tabs"><span class="lab">期間</span>';
+    DATA.periods.forEach(p=>{ if(p.available)
+      tabs+=`<button class="pill${p.key===chgState.p?' on':''}" data-k="${p.key}">${p.name}</button>`;});
+    tabs+='</div>';
+    area.innerHTML = tabs+
+      '<div class="panels">'+
+      '<div class="panel add"><div class="head">🟢 ETF 加碼 Top'+DATA.top+'</div><div id="addChart" class="chart"></div><div class="tblwrap"><table id="addTable"></table></div></div>'+
+      '<div class="panel reduce"><div class="head">🔴 ETF 減碼 Top'+DATA.top+'</div><div id="redChart" class="chart"></div><div class="tblwrap"><table id="redTable"></table></div></div>'+
+      '</div>';
+    area.querySelectorAll('.pill').forEach(b=>b.onclick=()=>{chgState.p=b.dataset.k; buildChange();});
+    renderChange();
+  }
+  function cTable(id,rows){
+    let h='<thead><tr><th>#</th><th class="l">代號</th><th class="l">名稱</th><th>張數變化</th></tr></thead><tbody>';
+    rows.forEach(r=>{ h+=`<tr><td class="rank">${r.rank}</td>
+      <td class="l"><a href="${yh(r.symbol)}" target="_blank" rel="noopener">${r.symbol}</a></td>
+      <td class="l">${r.name}</td><td class="num">${fmt(r.lots)}</td></tr>`;});
+    document.getElementById(id).innerHTML=h+'</tbody>';
+  }
+  function cBar(id,rows,color){
+    const r=rows.slice().reverse();
+    Plotly.newPlot(id,[{type:'bar',orientation:'h',x:r.map(x=>Math.abs(x.lots)),
+      y:r.map(x=>x.name+' '+x.symbol),text:r.map(x=>fmt(x.lots)),textposition:'auto',
+      marker:{color},hovertemplate:'%{y}<br>%{text} 張<extra></extra>'}],
+      {margin:{l:130,r:16,t:6,b:28},height:340,xaxis:{title:'張',gridcolor:'#eef2f7'},
+       yaxis:{automargin:true,tickfont:{size:11}},paper_bgcolor:'rgba(0,0,0,0)',plot_bgcolor:'rgba(0,0,0,0)'},
+      {responsive:true,displayModeBar:false});
+  }
+  function renderChange(){
+    const node=DATA.changes[chgState.p];
+    cBar('addChart',node.add,'#16a34a'); cBar('redChart',node.reduce,'#dc2626');
+    cTable('addTable',node.add); cTable('redTable',node.reduce);
+  }
+
+  holdBar(); holdTable(); buildChange();
+})();
+</script>
+
+</body>
+</html>
